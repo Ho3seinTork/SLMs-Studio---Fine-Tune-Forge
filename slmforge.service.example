@@ -1,0 +1,18 @@
+# نمونه فایل systemd service برای اجرای پایدار روی سرور لینوکس
+# (طوری که حتی پس از ریبوت سرور هم دوباره بالا بیاید)
+# مسیر نصب: /etc/systemd/system/slmforge.service
+# سپس: sudo systemctl daemon-reload && sudo systemctl enable --now slmforge
+
+[Unit]
+Description=SLM Forge API Server
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/path/to/slm_forge
+ExecStart=/path/to/slm_forge/venv/bin/python -m uvicorn app.api:app --host 0.0.0.0 --port 8765
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SLM Forge — استودیوی فاین‌تیونینگ مدل‌های زبانی کوچک</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <h1><span class="logo-dot"></span> SLM Forge <span class="subtitle">استودیوی فاین‌تیونینگ مدل‌های زبانی کوچک</span></h1>
+  <div class="header-actions">
+    <span class="status-pill" id="hw-pill" data-status="idle">در حال تشخیص سخت‌افزار...</span>
+    <button class="icon-btn" id="theme-toggle" title="تغییر تم">🌙</button>
+  </div>
+</header>
+
+<div class="shell">
+  <aside id="sidebar">
+
+    <div class="card" id="hardware-card">
+      <h2><span class="num">1</span> سخت‌افزار شناسایی‌شده</h2>
+      <div id="hardware-body" class="muted">در حال بررسی...</div>
+    </div>
+
+    <div class="card" id="dataset-card">
+      <h2><span class="num">2</span> دیتاست آموزش</h2>
+      <div class="field">
+        <label>فایل dataset.json (خروجی اپ Dataset Generator، یا Alpaca/ShareGPT)</label>
+        <input type="file" id="dataset-file" accept=".json,application/json">
+      </div>
+      <div id="dataset-info" class="kv"></div>
+    </div>
+
+    <div class="card" id="model-card">
+      <h2><span class="num">3</span> انتخاب مدل پایه (SLM)</h2>
+      <div id="model-list"></div>
+      <div class="field" style="margin-top:8px;">
+        <label>توکن Hugging Face (فقط برای مدل‌های Gated مثل Gemma/Llama)</label>
+        <input type="password" id="hf-token" placeholder="hf_...">
+      </div>
+    </div>
+
+    <div class="card" id="hparam-card">
+      <h2><span class="num">4</span> هایپرپارامترهای LoRA</h2>
+      <div class="grid-2">
+        <div class="field"><label>LoRA r</label><input type="number" id="p-lora_r" value="16"></div>
+        <div class="field"><label>LoRA alpha</label><input type="number" id="p-lora_alpha" value="32"></div>
+        <div class="field"><label>Dropout</label><input type="number" step="0.01" id="p-lora_dropout" value="0.05"></div>
+        <div class="field"><label>Learning rate</label><input type="text" id="p-learning_rate" value="0.0002"></div>
+        <div class="field"><label>Epochs</label><input type="number" step="0.5" id="p-num_train_epochs" value="3"></div>
+        <div class="field"><label>Batch/device</label><input type="number" id="p-per_device_batch_size" value="1"></div>
+        <div class="field"><label>Grad accumulation</label><input type="number" id="p-grad_accum_steps" value="8"></div>
+        <div class="field"><label>Max seq len</label><input type="number" id="p-max_seq_len" value="1024"></div>
+      </div>
+      <div class="checkbox-row"><input type="checkbox" id="p-use_4bit"><label for="p-use_4bit">QLoRA (4bit) — فقط با GPU سازگار</label></div>
+      <div class="checkbox-row"><input type="checkbox" id="p-gradient_checkpointing" checked><label for="p-gradient_checkpointing">Gradient checkpointing (کاهش مصرف حافظه)</label></div>
+      <div class="field"><label>Precision</label>
+        <select id="p-precision"><option value="bf16">bf16</option><option value="fp16">fp16</option><option value="fp32">fp32 (CPU)</option></select>
+      </div>
+      <button class="btn btn-primary btn-block" id="btn-start-train">🔥 شروع فاین‌تیونینگ</button>
+    </div>
+
+  </aside>
+
+  <main id="main">
+
+    <div class="card">
+      <h2>کارهای آموزش (Jobs)</h2>
+      <p class="hint">هر job یک پروسه کاملاً مجزا از این رابط کاربری است؛ بستن مرورگر یا قطع اتصال ریموت آن را متوقف نمی‌کند.</p>
+      <div id="jobs-list"><p class="muted">هنوز هیچ آموزشی شروع نشده است.</p></div>
+    </div>
+
+    <div class="card" id="export-card">
+      <h2>خروجی‌گیری و سرو مدل</h2>
+      <div class="grid-2">
+        <div class="field"><label>پوشه Adapter (از job موردنظر)</label><input type="text" id="exp-adapter-dir" placeholder="jobs/<job_id>/adapter"></div>
+        <div class="field"><label>مدل پایه</label><input type="text" id="exp-base-model" placeholder="مثلاً Qwen/Qwen2.5-1.5B-Instruct"></div>
+        <div class="field"><label>پوشه خروجی ادغام‌شده</label><input type="text" id="exp-output-dir" value="jobs/merged_model"></div>
+      </div>
+      <div class="output-row">
+        <button class="btn" id="btn-merge">ادغام LoRA با مدل پایه</button>
+        <button class="btn btn-ghost" id="btn-gguf-info">راهنمای خروجی GGUF (برای llama.cpp/Ollama)</button>
+      </div>
+      <div id="export-result" class="kv"></div>
+
+      <h3 style="margin-top:16px;font-size:13px;">سرو مدل برای تست سریع</h3>
+      <div class="field"><label>پوشه مدل برای بارگذاری (merged یا adapter)</label><input type="text" id="serve-model-dir" placeholder="jobs/merged_model"></div>
+      <div class="output-row">
+        <button class="btn btn-primary" id="btn-serve-start">سوار کردن مدل</button>
+        <button class="btn btn-danger" id="btn-serve-stop">پیاده‌کردن مدل</button>
+      </div>
+      <div class="field" style="margin-top:8px;"><label>پرامپت تست</label><textarea id="serve-prompt" rows="3" placeholder="یک سوال یا دستور بنویس..."></textarea></div>
+      <button class="btn" id="btn-serve-generate">تولید پاسخ</button>
+      <div class="logs-list" id="serve-output" style="margin-top:8px;"></div>
+    </div>
+
+  </main>
+</div>
+
+<div class="overlay" id="info-modal">
+  <div class="modal">
+    <div class="modal-head"><h3 id="info-modal-title">راهنما</h3><button class="icon-btn" id="info-modal-close">✕</button></div>
+    <div class="modal-body" id="info-modal-body"></div>
+  </div>
+</div>
+
+<div id="toast-root"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>
