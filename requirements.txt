@@ -4,16 +4,9 @@ pywebview>=4.4.1
 psutil>=5.9
 python-multipart>=0.0.9
 
-# --------------------------------------------------------------------
-# Deep learning / fine-tuning libraries
-# --------------------------------------------------------------------
-# PyTorch must be installed separately according to your hardware.
-# See: https://pytorch.org/get-started/locally
-# CPU-only example:
-#   pip install torch --index-url https://download.pytorch.org/whl/cpu
-# CUDA example:
-#   pip install torch --index-url https://download.pytorch.org/whl/cu124
-
+# --- Deep learning / fine-tuning libraries ---
+# torch is intentionally NOT pinned here because the right build depends on
+# your hardware (CPU-only vs CUDA). Install it separately first - see README.
 transformers>=4.42
 peft>=0.11
 trl>=0.9
@@ -22,7 +15,5 @@ accelerate>=0.30
 sentencepiece
 protobuf
 
-# --------------------------------------------------------------------
-# Optional — only needed for 4-bit QLoRA on NVIDIA GPU with CUDA
-# --------------------------------------------------------------------
+# --- Optional: only needed for 4bit QLoRA on an NVIDIA GPU with CUDA ---
 # bitsandbytes>=0.43

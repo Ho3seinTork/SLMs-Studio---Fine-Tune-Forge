@@ -1,15 +1,15 @@
-"""Hardware detection and training profile recommendation.
-
-This module detects system specifications (RAM, CPU, GPU/VRAM) and recommends
-an appropriate training profile based on available resources. It is designed to
-operate gracefully even when optional dependencies (torch, psutil) are not installed.
+# -*- coding: utf-8 -*-
 """
-
+تشخیص سخت‌افزار و پیشنهاد پروفایل آموزش | Hardware detection & training profile advisor
+---------------------------------------------------------------------------
+این ماژول مشخصات سیستم (RAM، CPU، GPU/VRAM) را تشخیص می‌دهد و بر اساس آن
+یک پروفایل پیشنهادی (لپ‌تاپ ضعیف / لپ‌تاپ با GPU کوچک / سرور قدرتمند) برمی‌گرداند.
+طراحی شده تا حتی بدون نصب‌بودن torch هم بدون خطا اجرا شود (GPU detection به‌صورت
+اختیاری و امن انجام می‌شود).
+"""
 from __future__ import annotations
-
-import os
 import platform
-from typing import Any, Optional
+import os
 
 try:
     import psutil
@@ -18,26 +18,16 @@ except ImportError:  # pragma: no cover
 
 
 def _bytes_to_gb(n: int) -> float:
-    """Convert bytes to gigabytes with two-decimal precision."""
-    return round(n / (1024**3), 2)
+    return round(n / (1024 ** 3), 2)
 
 
-def detect_hardware() -> dict[str, Any]:
-    """Detect current system hardware specifications.
-
-    Returns a dictionary containing OS details, CPU information, RAM capacity,
-    and GPU availability (with VRAM and CUDA version if applicable).
-
-    Returns:
-        dict: Hardware specifications including os, cpu_name, cpu_cores_logical,
-            ram_total_gb, ram_available_gb, gpu_available, gpu_name,
-            gpu_vram_total_gb, cuda_version, torch_installed.
-    """
-    info: dict[str, Any] = {
+def detect_hardware() -> dict:
+    """مشخصات فعلی سیستم را برمی‌گرداند | Returns current system specs."""
+    info = {
         "os": platform.system(),
         "os_version": platform.version(),
         "python_version": platform.python_version(),
-        "cpu_name": platform.processor() or "Unknown",
+        "cpu_name": platform.processor() or "نامشخص",
         "cpu_cores_logical": os.cpu_count() or 1,
         "ram_total_gb": None,
         "ram_available_gb": None,
@@ -54,8 +44,7 @@ def detect_hardware() -> dict[str, Any]:
         info["ram_available_gb"] = _bytes_to_gb(vm.available)
 
     try:
-        import torch  # noqa: WPS433 (optional, safe import)
-
+        import torch  # noqa: WPS433  (import اختیاری و امن)
         info["torch_installed"] = True
         if torch.cuda.is_available():
             info["gpu_available"] = True
@@ -64,18 +53,18 @@ def detect_hardware() -> dict[str, Any]:
             info["gpu_vram_total_gb"] = _bytes_to_gb(props.total_memory)
             info["cuda_version"] = getattr(torch.version, "cuda", None)
     except Exception:
-        pass  # torch not installed or GPU detection failed — continue gracefully
+        # torch نصب نیست یا خطایی در GPU detection رخ داد — بدون مشکل ادامه بده
+        pass
 
     return info
 
 
 # ---------------------------------------------------------------------------
-# Training profile definitions
+# پروفایل‌های پیشنهادی آموزش | Suggested training profiles
 # ---------------------------------------------------------------------------
-
-PROFILES: dict[str, dict[str, Any]] = {
+PROFILES = {
     "laptop_cpu": {
-        "label": "Laptop without dedicated GPU (CPU only)",
+        "label": "لپ‌تاپ بدون GPU اختصاصی (CPU فقط)",
         "max_model_params_b": 1.6,
         "use_4bit": False,
         "precision": "fp32",
@@ -85,14 +74,11 @@ PROFILES: dict[str, dict[str, Any]] = {
         "grad_accum_steps": 16,
         "max_seq_len": 512,
         "gradient_checkpointing": True,
-        "warning": (
-            "Training on CPU is significantly slower than on GPU "
-            "(potentially several hours per epoch on small datasets). "
-            "Only models ≤1.5B parameters with small datasets are recommended."
-        ),
+        "warning": "آموزش روی CPU بسیار کندتر از GPU است (احتمالاً چند ساعت تا یک شب برای هر epoch روی دیتاست کوچک). "
+                   "فقط مدل‌های کوچک (≤۱.۵ میلیارد پارامتر) و دیتاست کوچک پیشنهاد می‌شود."
     },
     "laptop_gpu_small": {
-        "label": "Laptop with small GPU (4–6 GB VRAM)",
+        "label": "لپ‌تاپ با GPU کوچک (مثلاً ۴ تا ۶ گیگ VRAM)",
         "max_model_params_b": 4,
         "use_4bit": True,
         "precision": "bf16",
@@ -102,13 +88,10 @@ PROFILES: dict[str, dict[str, Any]] = {
         "grad_accum_steps": 8,
         "max_seq_len": 1024,
         "gradient_checkpointing": True,
-        "warning": (
-            "With QLoRA (4-bit quantization), models up to ~4B parameters "
-            "typically fit on this hardware tier."
-        ),
+        "warning": "با QLoRA (۴-بیتی) مدل‌های تا حدود ۴ میلیارد پارامتر معمولاً روی این سخت‌افزار جا می‌شوند."
     },
     "server_gpu": {
-        "label": "Server with powerful GPU (≥16 GB VRAM)",
+        "label": "سرور با GPU قدرتمند (≥ ۱۶ گیگ VRAM)",
         "max_model_params_b": 14,
         "use_4bit": True,
         "precision": "bf16",
@@ -118,25 +101,14 @@ PROFILES: dict[str, dict[str, Any]] = {
         "grad_accum_steps": 2,
         "max_seq_len": 2048,
         "gradient_checkpointing": False,
-        "warning": (
-            "Consider disabling 4-bit quantization and using full bf16 precision "
-            "LoRA for higher quality results on this hardware tier."
-        ),
+        "warning": "می‌توانید 4bit را خاموش کنید و LoRA معمولی با دقت bf16 اجرا کنید تا کیفیت بالاتر برود."
     },
 }
 
 
-def recommend_profile(hw: Optional[dict[str, Any]] = None) -> dict[str, Any]:
-    """Select a training profile based on detected hardware specifications.
-
-    Args:
-        hw: Hardware specs dict from detect_hardware(). If None, auto-detects.
-
-    Returns:
-        dict: Profile with key, label, recommended hyperparameters, and warnings.
-    """
+def recommend_profile(hw: dict | None = None) -> dict:
+    """بر اساس مشخصات سخت‌افزار، یک پروفایل پیشنهادی انتخاب می‌کند."""
     hw = hw or detect_hardware()
-
     if hw.get("gpu_available"):
         vram = hw.get("gpu_vram_total_gb") or 0
         profile_key = "server_gpu" if vram >= 16 else "laptop_gpu_small"
@@ -151,13 +123,6 @@ def recommend_profile(hw: Optional[dict[str, Any]] = None) -> dict[str, Any]:
 
 if __name__ == "__main__":
     import json
-
     hw_info = detect_hardware()
     rec = recommend_profile(hw_info)
-    print(
-        json.dumps(
-            {"hardware": hw_info, "recommended_profile": rec},
-            indent=2,
-            ensure_ascii=False,
-        )
-    )
+    print(json.dumps({"hardware": hw_info, "recommended_profile": rec}, indent=2, ensure_ascii=False))
