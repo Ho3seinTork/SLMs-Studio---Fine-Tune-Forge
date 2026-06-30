@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # SLM Forge — استودیوی فاین‌تیونینگ مدل‌های زبانی کوچک
 
 اپلیکیشنی با رابط گرافیکی زیبا (FastAPI + UI وب محلی، باز شده در یک پنجره دسکتاپ با pywebview) برای
@@ -135,3 +136,7 @@ slm_forge/
   فقط حافظه بیشتری می‌خواهد).
 - مدل‌های Gated (Gemma، Llama) نیاز دارند ابتدا در صفحه مدل روی huggingface.co لایسنس را بپذیرید
   و یک Access Token با دسترسی Read بسازید.
+=======
+# SLMs-Studio---Fine-Tune-Forge
+Desktop app for fine-tuning Small Language Models (&lt;10B) via LoRA/QLoRA. Runs on any hardware, from CPU laptops to GPU servers. Detached training survives disconnections. Full local control, live monitoring, in-app testing. No cloud required. Built for researchers, devs, and AI enthusiasts.
+>>>>>>> origin/main
