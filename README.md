@@ -1,5 +1,263 @@
-<<<<<<< HEAD
+# SLM Forge — Small Language Model Fine-tuning Studio
+
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/37f87614-7c18-494a-9486-962d10bdfa51" />
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+
+A desktop application for fine-tuning **Small Language Models** (SLMs) — models
+like Qwen, Gemma, Phi, TinyLlama, and Llama in the <10B parameter range — using
+**LoRA** and **QLoRA** with a graphical interface.
+
+SLM Forge runs on both low-resource laptops (CPU-only) and powerful GPU servers,
+with training executed as detached OS processes that survive SSH/RDP disconnects.
+
+<p align="center">
+  <em>UI shown in dark theme — automatically adapts to light/dark mode.</em>
+</p>
+
+---
+
+## Features
+
+- **Hardware auto-detection** — Detects RAM, CPU cores, GPU/VRAM and recommends
+  optimal hyperparameters for your machine.
+- **Curated model catalog** — Pre-configured list of popular SLMs with hardware
+  compatibility indicators.
+- **Multi-format dataset support** — Accepts Alpaca, ShareGPT, and custom
+  Dataset Generator JSON formats with automatic format detection.
+- **LoRA/QLoRA fine-tuning** — Full support for LoRA (fp32/fp16/bf16) and 4-bit
+  QLoRA quantization via `bitsandbytes`.
+- **Detached training** — Each training job runs as a fully independent OS
+  process. Close the GUI, disconnect SSH/RDP — training continues and writes
+  progress to disk.
+- **Live monitoring** — Real-time loss charts, step progress, and log tails
+  in the UI (updates every 4 seconds).
+- **Checkpoint & resume** — Training checkpoints are saved at each epoch.
+  Stopped jobs can be resumed from the last checkpoint.
+- **LoRA merge** — Merge trained adapters with the base model to produce a
+  standalone model directory.
+- **In-app testing** — Load fine-tuned models directly in the UI for quick
+  evaluation prompts.
+- **GGUF export guide** — Built-in instructions for converting to GGUF for
+  llama.cpp / Ollama deployment.
+
+---
+
+## Quick Start
+
+### Windows (double-click)
+
+1. Install Python 3.10+ from [python.org](https://www.python.org/downloads/)
+   (check "Add python.exe to PATH" during installation).
+2. Double-click `run_windows.bat`.
+3. The script creates a virtual environment, installs dependencies, and
+   launches the application.
+
+### Linux/macOS Server
+
+```bash
+git clone https://github.com/slm-forge/slm-forge.git
+cd slm-forge
+
+# Install PyTorch for your hardware first:
+# CPU:  pip install torch --index-url https://download.pytorch.org/whl/cpu
+# CUDA: pip install torch --index-url https://download.pytorch.org/whl/cu124
+
+pip install -r requirements.txt
+python -m app.main
+```
+
+For headless servers, run just the API server and access the UI from your
+browser via SSH tunnel:
+
+```bash
+python -m uvicorn app.api:app --host 0.0.0.0 --port 8765
+# From your local machine:
+ssh -L 8765:localhost:8765 user@server-ip
+# Then open http://127.0.0.1:8765 in your browser
+```
+
+---
+
+## Usage Guide
+
+### 1. Hardware Detection
+The top card displays your system specs (OS, CPU, RAM, GPU) and recommends
+a training profile. Hyperparameters are pre-filled based on this profile.
+
+### 2. Dataset Upload
+Upload a JSON dataset file. Supported formats:
+- **Dataset Generator** output (JSON array with `status`, `conversation` fields)
+- **Alpaca** (`instruction`, `input`, `output`)
+- **ShareGPT** (`conversations` with `from`/`value`)
+
+Only samples with `status: "success"` (Dataset Generator) or valid
+conversation pairs are used.
+
+### 3. Model Selection
+Choose a base model from the catalog. Models marked with a "Gated" badge
+require accepting the license on Hugging Face and providing an access token.
+
+### 4. Hyperparameter Configuration
+LoRA parameters (rank, alpha, dropout, learning rate, batch size, epochs,
+sequence length) are pre-filled from the hardware profile but can be
+customized.
+
+### 5. Start Training
+Click "Start Fine-tuning". A new Job appears in the main panel with:
+- Live progress bar
+- Real-time loss chart
+- Current phase and step counter
+- Stop / Resume buttons
+
+### 6. Export & Merge
+After training completes, use the Export section to:
+- **Merge** the LoRA adapter with the base model → standalone model directory
+- **Convert to GGUF** — follow the built-in instructions for llama.cpp/Ollama
+
+### 7. In-App Testing
+Load the merged model and run test prompts directly in the UI.
+
+---
+
+## Hardware Requirements
+
+| Hardware Tier | Profile | Recommended Models | Expected Speed |
+|---|---|---|---|
+| CPU only, 8 GB RAM | `laptop_cpu` | Qwen2.5-0.5B, TinyLlama-1.1B | Very slow (hours per epoch) |
+| Laptop GPU, 4–6 GB VRAM | `laptop_gpu_small` | Up to ~4B params with QLoRA | Moderate |
+| Server GPU, ≥16 GB VRAM | `server_gpu` | Up to ~14B params | Fast |
+
+> **Note**: Fine-tuning language models on CPU-only systems is inherently slow.
+> SLM Forge does not work miracles — it optimizes what your hardware can do,
+> but a GPU is strongly recommended for productive use.
+
+---
+
+## Project Structure
+
+```
+slm_forge/
+├── app/                          # Python package
+│   ├── __init__.py               # Version info
+│   ├── main.py                   # Entry point (desktop window)
+│   ├── api.py                    # FastAPI REST backend
+│   ├── hardware.py               # System detection & profile advisor
+│   ├── models_catalog.py         # Curated SLM catalog
+│   ├── dataset_converter.py      # Multi-format dataset converter
+│   ├── trainer.py                # LoRA/QLoRA training engine
+│   ├── train_worker.py           # Standalone subprocess worker
+│   ├── job_manager.py            # Job lifecycle (start/stop/resume/monitor)
+│   ├── exporter.py               # LoRA merge & GGUF export guide
+│   └── server_inference.py       # Lightweight model serving for testing
+├── ui/                           # Web frontend (Persian RTL)
+│   ├── index.html
+│   ├── style.css
+│   └── app.js
+├── tests/                        # Pytest test suite
+├── jobs/                         # Runtime job data (gitignored)
+├── .github/workflows/ci.yml      # CI pipeline
+├── pyproject.toml                # Project metadata & tool config
+├── requirements.txt              # Python dependencies
+├── run_windows.bat               # Windows one-click launcher
+├── run_server.sh                 # Linux server launcher
+├── slmforge.service.example      # systemd service template
+├── LICENSE
+├── README.md
+└── CONTRIBUTING.md
+```
+
+---
+
+## How Detached Training Works
+
+SLM Forge uses a **two-layer resilience strategy** to ensure training survives
+disconnections:
+
+1. **Primary layer**: Each training job is launched via `train_worker.py` as a
+   detached OS subprocess:
+   - **Linux/macOS**: `start_new_session=True` (equivalent to `nohup`)
+   - **Windows**: `DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP` flags
+   
+   The worker writes progress to disk files (`status.json`,
+   `loss_history.jsonl`, `log.txt`). Even if you close the GUI, browser,
+   or SSH session, the worker continues.
+
+2. **Recommended additional layer**: Run the API server itself inside
+   `tmux`/`screen` (Linux) or as a systemd service so the UI remains
+   accessible across sessions. A sample systemd unit is provided in
+   `slmforge.service.example`.
+
+---
+
+## API Reference
+
+The FastAPI backend exposes the following endpoints (all under `/api/`):
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/hardware` | Hardware specs & recommended profile |
+| GET | `/api/models` | Model catalog filtered by hardware |
+| POST | `/api/dataset/upload` | Upload & preview a dataset |
+| POST | `/api/train/start` | Start a fine-tuning job |
+| POST | `/api/train/{id}/stop` | Stop a running job |
+| POST | `/api/train/{id}/resume` | Resume from checkpoint |
+| GET | `/api/jobs` | List all jobs |
+| GET | `/api/jobs/{id}/status` | Get job status & loss history |
+| POST | `/api/export/merge` | Merge LoRA adapter with base model |
+| GET | `/api/export/gguf-instructions` | GGUF conversion guide |
+| POST | `/api/serve/start` | Load model for inference |
+| POST | `/api/serve/stop` | Unload model |
+| GET | `/api/serve/health` | Check if model is loaded |
+| POST | `/api/serve/generate` | Generate text from loaded model |
+
+---
+
+## Known Limitations
+
+- **`bitsandbytes` on Windows**: The package (required for QLoRA 4-bit
+  quantization) may require Visual C++ Redistributable. If it fails to load,
+  disable the QLoRA checkbox — standard LoRA works without it but uses more
+  memory.
+- **Gated models**: Gemma, Llama, and other gated models require accepting the
+  license on [huggingface.co](https://huggingface.co) and creating a read-only
+  access token.
+- **No built-in GGUF export**: Due to the complexity of C++ compilation
+  (llama.cpp), SLM Forge provides step-by-step instructions instead of
+  automatic GGUF conversion.
+
+---
+
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for
+guidelines on setting up a development environment, running tests, and
+submitting pull requests.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE) for full text.
+
+---
+
+## Acknowledgments
+
+Built on the Hugging Face ecosystem:
+[transformers](https://github.com/huggingface/transformers),
+[peft](https://github.com/huggingface/peft),
+[trl](https://github.com/huggingface/trl),
+[datasets](https://github.com/huggingface/datasets).
+
+Desktop window provided by [pywebview](https://github.com/r0x0r/pywebview).
+
 # SLM Forge — استودیوی فاین‌تیونینگ مدل‌های زبانی کوچک
+
+<img width="1918" height="1078" alt="2" src="https://github.com/user-attachments/assets/362cc9f9-b35e-40e4-8578-63427301127a" />
+
 
 اپلیکیشنی با رابط گرافیکی زیبا (FastAPI + UI وب محلی، باز شده در یک پنجره دسکتاپ با pywebview) برای
 فاین‌تیون‌کردن مدل‌های زبانی کوچک (SLM مثل Gemma، Qwen، Phi، TinyLlama، Llama) با تکنیک
@@ -136,7 +394,3 @@ slm_forge/
   فقط حافظه بیشتری می‌خواهد).
 - مدل‌های Gated (Gemma، Llama) نیاز دارند ابتدا در صفحه مدل روی huggingface.co لایسنس را بپذیرید
   و یک Access Token با دسترسی Read بسازید.
-=======
-# SLMs-Studio---Fine-Tune-Forge
-Desktop app for fine-tuning Small Language Models (&lt;10B) via LoRA/QLoRA. Runs on any hardware, from CPU laptops to GPU servers. Detached training survives disconnections. Full local control, live monitoring, in-app testing. No cloud required. Built for researchers, devs, and AI enthusiasts.
->>>>>>> origin/main
